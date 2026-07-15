@@ -1,0 +1,28 @@
+name: Cooling Data Fetch
+
+on:
+  # Manually triggered from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    env:
+      REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get install -y --no-install-recommends jq
+
+      - name: Run fetch script
+        run: bash scripts/fetch.sh
+
+      - name: Upload GeoJSON as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sachsen-cooling-data-${{ github.run_id }}
+          path: data/sachsen-cooling.geojson
+          retention-days: 7

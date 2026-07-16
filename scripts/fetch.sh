@@ -46,6 +46,10 @@ fi
 # --- Prepare output directory ------------------------------------------------
 mkdir -p "$OUTPUT_DIR"
 
+# --- Create temp file for raw API response -----------------------------------
+TMPFILE=$(mktemp "${TMPDIR:-/tmp}/overpass_raw.XXXXXX.json")
+trap 'rm -f "$TMPFILE"' EXIT
+
 # --- Fetch from Overpass API -------------------------------------------------
 echo "[fetch] Sending query to Overpass API..."
 
@@ -56,7 +60,7 @@ HTTP_STATUS=$(curl \
   --show-error \
   --fail-with-body \
   --write-out "%{http_code}" \
-  --output /tmp/overpass_raw.json \
+  --output "$TMPFILE" \
   --user-agent "$USER_AGENT" \
   --data-urlencode "data=${QUERY}" \
   "$OVERPASS_URL" \
@@ -64,14 +68,14 @@ HTTP_STATUS=$(curl \
 
 if [ "$HTTP_STATUS" != "200" ]; then
   echo "Error: Overpass API returned HTTP ${HTTP_STATUS}" >&2
-  cat /tmp/overpass_raw.json >&2
+  cat "$TMPFILE" >&2
   exit 1
 fi
 
 echo "[fetch] Received response (HTTP ${HTTP_STATUS})"
 
 # --- Validate response -------------------------------------------------------
-ELEMENT_COUNT=$(jq '.elements | length' /tmp/overpass_raw.json)
+ELEMENT_COUNT=$(jq '.elements | length' "$TMPFILE")
 echo "[fetch] Elements received: ${ELEMENT_COUNT}"
 
 if [ "$ELEMENT_COUNT" -eq 0 ]; then
@@ -104,7 +108,7 @@ jq '{
       }
     }
   ]
-}' /tmp/overpass_raw.json > "$OUTPUT_FILE"
+}' "$TMPFILE" > "$OUTPUT_FILE"
 
 echo "[done] Saved to: ${OUTPUT_FILE}"
 echo "[done] Features: $(jq '.features | length' "$OUTPUT_FILE")"

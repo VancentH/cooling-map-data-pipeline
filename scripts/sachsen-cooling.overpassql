@@ -6,6 +6,7 @@ area["name"="Sachsen"]["boundary"="administrative"]["admin_level"="4"]->.searchA
   nwr["amenity"="cinema"](area.searchArea);
   nwr["shop"="department_store"](area.searchArea);
   nwr["shop"="supermarket"](area.searchArea);
+  nwr["shop"="chemist"](area.searchArea);
 );
 
 out center;

@@ -82,9 +82,14 @@ if [ "$ELEMENT_COUNT" -eq 0 ]; then
   echo "Warning: Query returned 0 elements. Check the query or area filter." >&2
 fi
 
-# --- Convert OSM JSON to GeoJSON ---------------------------------------------
-echo "[convert] Converting to GeoJSON..."
+# --- Convert OSM JSON to GeoJSON + Data Cleaning -----------------------------
+echo "[convert] Converting to GeoJSON and applying data cleaning rules..."
 
+# Temp file for intermediate (unfiltered) GeoJSON
+RAW_GEOJSON=$(mktemp "${TMPDIR:-/tmp}/geojson_raw.XXXXXX.json")
+trap 'rm -f "$TMPFILE" "$RAW_GEOJSON"' EXIT
+
+# Step 1: Convert OSM JSON to raw GeoJSON (all elements, all tags)
 jq '{
   "type": "FeatureCollection",
   "features": [
@@ -108,7 +113,56 @@ jq '{
       }
     }
   ]
-}' "$TMPFILE" > "$OUTPUT_FILE"
+}' "$TMPFILE" > "$RAW_GEOJSON"
 
+RAW_COUNT=$(jq '.features | length' "$RAW_GEOJSON")
+echo "[clean] Raw features before cleaning: ${RAW_COUNT}"
+
+# Step 2: Apply cleaning rules and select properties
+jq '{
+  "type": "FeatureCollection",
+  "features": [
+    .features[] |
+
+    # Rule 2.1 — Remove features where both name and brand are missing
+    select(.properties.name != null or .properties.brand != null) |
+
+    # Rule 2.2 — Chemist whitelist: only keep dm, Rossmann, Müller (substring match)
+    select(
+      .properties.shop != "chemist" or
+      (
+        ((.properties.name // .properties.brand // "") |
+          (test("dm"; "i") or test("Rossmann"; "i") or test("Müller"; "i")))
+      )
+    ) |
+
+    # Rule 2.3 — Keep only specified properties (null values are preserved)
+    {
+      "type": .type,
+      "id": .id,
+      "properties": {
+        "id":                .properties.id,
+        "name":              .properties.name,
+        "shop":              .properties.shop,
+        "amenity":           .properties.amenity,
+        "leisure":           .properties.leisure,
+        "opening_hours":     .properties.opening_hours,
+        "air_conditioning":  .properties.air_conditioning,
+        "website":           .properties.website,
+        "wheelchair":        .properties.wheelchair,
+        "addr:street":       .properties["addr:street"],
+        "addr:housenumber":  .properties["addr:housenumber"],
+        "addr:postcode":     .properties["addr:postcode"],
+        "addr:city":         .properties["addr:city"]
+      },
+      "geometry": .geometry
+    }
+  ]
+}' "$RAW_GEOJSON" > "$OUTPUT_FILE"
+
+FINAL_COUNT=$(jq '.features | length' "$OUTPUT_FILE")
+REMOVED_COUNT=$((RAW_COUNT - FINAL_COUNT))
+
+echo "[clean] Features after cleaning: ${FINAL_COUNT}"
+echo "[clean] Features removed: ${REMOVED_COUNT}"
 echo "[done] Saved to: ${OUTPUT_FILE}"
-echo "[done] Features: $(jq '.features | length' "$OUTPUT_FILE")"

@@ -1,4 +1,4 @@
-[out:json][timeout:90];
+[out:json][timeout:180];
 area["name"="Sachsen"]["boundary"="administrative"]["admin_level"="4"]->.searchArea;
 (
   nwr["air_conditioning"="yes"](area.searchArea);

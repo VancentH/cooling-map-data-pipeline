@@ -150,10 +150,12 @@ jq '{
         "air_conditioning":  .properties.air_conditioning,
         "website":           .properties.website,
         "wheelchair":        .properties.wheelchair,
+        "level":             .properties.level,
         "addr:street":       .properties["addr:street"],
         "addr:housenumber":  .properties["addr:housenumber"],
         "addr:postcode":     .properties["addr:postcode"],
-        "addr:city":         .properties["addr:city"]
+        "addr:city":         .properties["addr:city"],
+        "addr:floor":        .properties["addr:floor"]
       },
       "geometry": .geometry
     }

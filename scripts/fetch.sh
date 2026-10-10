@@ -119,7 +119,17 @@ RAW_COUNT=$(jq '.features | length' "$RAW_GEOJSON")
 echo "[clean] Raw features before cleaning: ${RAW_COUNT}"
 
 # Step 2: Apply cleaning rules and select properties
-jq '{
+jq '
+  # Normalizes OSM tagging typos seen in level / addr:floor (e.g. "eg" -> "0",
+  # stray/doubled semicolons in multi-level lists like ";0" -> "0").
+  def normalize_level_value:
+    if . == null then null
+    else
+      ( if (ascii_downcase == "eg") then "0" else . end ) as $mapped |
+      ( $mapped | split(";") | map(select(length > 0)) | join(";") )
+    end;
+
+  {
   "type": "FeatureCollection",
   "features": [
     .features[] |
@@ -150,12 +160,12 @@ jq '{
         "air_conditioning":  .properties.air_conditioning,
         "website":           .properties.website,
         "wheelchair":        .properties.wheelchair,
-        "level":             .properties.level,
+        "level":             (.properties.level | normalize_level_value),
         "addr:street":       .properties["addr:street"],
         "addr:housenumber":  .properties["addr:housenumber"],
         "addr:postcode":     .properties["addr:postcode"],
         "addr:city":         .properties["addr:city"],
-        "addr:floor":        .properties["addr:floor"]
+        "addr:floor":        (.properties["addr:floor"] | normalize_level_value)
       },
       "geometry": .geometry
     }

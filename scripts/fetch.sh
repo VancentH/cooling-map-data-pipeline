@@ -129,6 +129,29 @@ jq '
       ( $mapped | split(";") | map(select(length > 0)) | join(";") )
     end;
 
+  # Priority weight for map display (lower sort_rank = shown first).
+  # Category is the first non-null of shop / amenity / leisure; unmatched
+  # categories fall into the Tier 2-C fallback (400).
+  def sort_rank_of:
+    (.properties.shop // .properties.amenity // .properties.leisure // "") as $category |
+    ({
+      "mall":              100,
+      "department_store":  105,
+      "library":           110,
+      "cinema":            115,
+      "theatre":           200,
+      "cafe":              220,
+      "fast_food":         225,
+      "restaurant":        230,
+      "supermarket":       300,
+      "chemist":           320,
+      "bakery":            340,
+      "pharmacy":          500,
+      "hairdresser":       550,
+      "doctors":           560,
+      "dentist":           570
+    }[$category] // 400);
+
   {
   "type": "FeatureCollection",
   "features": [
@@ -156,6 +179,7 @@ jq '
         "shop":              .properties.shop,
         "amenity":           .properties.amenity,
         "leisure":           .properties.leisure,
+        "sort_rank":         sort_rank_of,
         "opening_hours":     .properties.opening_hours,
         "air_conditioning":  .properties.air_conditioning,
         "website":           .properties.website,
